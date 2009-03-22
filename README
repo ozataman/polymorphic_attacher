@@ -1,0 +1,17 @@
+PolymorphicAttacher
+===================
+
+A relatively common headache in Rails (at least for me) is dealing with 
+double-polymorphic associations through web forms. How one attaches, detaches parent/child nodes
+becomes a messy endeavor.
+
+This plugin is an attempt to encapsulate some easy to use functionality.
+
+
+Example
+=======
+
+Examples will follow later on.
+
+
+Copyright (c) 2009 [Ozgun Ataman, ozataman.at.gmail.com], released under the MIT license
