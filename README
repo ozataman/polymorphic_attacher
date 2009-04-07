@@ -11,7 +11,36 @@ This plugin is an attempt to encapsulate some easy to use functionality.
 Example
 =======
 
-Examples will follow later on.
+class Product < ActiveRecord::Base 
+	has_many    :record_connectors_as_parent, :as => :parent, :class_name => "RecordConnector"
+  has_many    :descriptions, :through => :record_connectors_as_parent, :source => :record, :source_type => "Description"
+end
 
+class RecordConnector < ActiveRecord::Base
+	belongs_to :parent, :polymorphic => true
+  belongs_to :record, :polymorphic => true
+end
+
+class Description < ActiveRecord::Base
+
+	has_many :record_connectors_as_record, :as => :record, :class_name => "RecordConnector"
+	has_many :products, :through => :record_connectors_as_record, :source => :parent, :source_type => "Product"
+
+	# use the polymorphic attacher plugin to handle double-polymorphic connections through web forms
+	create_polymorphic_attacher_on(:associate_to, :connector => "record_connectors_as_record", 
+	  :connector_source => "parent", :validate => true, :poly_getter => :parents)
+end
+
+Now you can do things like:
+
+<tt>d = Description.new</tt>
+<tt>d.associate_to = Product.first</tt>
+<tt>d.save</tt>
+
+And the double-polymorhpic association will be saved. Instead of step #2 above, you could also do:
+
+<tt>d.associate_to = "Product_75633"</tt>, which makes dealing with web forms a lot easier.
+
+Hope this helps. I'd love to hear comments/feedback and feature suggestions.
 
 Copyright (c) 2009 [Ozgun Ataman, ozataman.at.gmail.com], released under the MIT license

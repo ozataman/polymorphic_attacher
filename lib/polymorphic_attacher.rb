@@ -108,7 +108,7 @@ module PolymorphicAttacher
         # build the join-table objects that will establish the linkage
         collection = self.send(key).map {|record| klass.new(source => record, as => self)}
         
-        # replace the old join-table object with the newly defined set
+        # replace the old join-table set of objects with the newly defined set
         self.send((attacher_hash[:connector] + "=").to_sym, collection)
       end
     end
