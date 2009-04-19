@@ -4,18 +4,17 @@ module PolymorphicAttacher
     class MissingConnectorDef < StandardError; end;
     
     def create_polymorphic_attacher_on(key, params={})
-      params.assert_valid_keys([:find_scopes, :connector, :connector_source, :validate, :poly_getter])
+      params.assert_valid_keys([:find_scopes, :connector, :connector_source, :validate, :poly_getter, :context_key, :context])
       raise MissingConnectorDef, "need a connector" unless params[:connector]
       raise MissingConnectorDef, "need a connector source" unless params[:connector_source]
+      raise MissingConnectorDef, "need a context" unless params[:context]
+      raise MissingConnectorDef, "need a context key" unless params[:context_key]
       
       key = key.to_s
       write_inheritable_attribute(:polymorphic_attachers, []) if read_inheritable_attribute(:polymorphic_attachers).nil?
       read_inheritable_attribute(:polymorphic_attachers) << params.merge({:key => key})
       
       include PolymorphicAttacher::InstanceMethods
-          
-      # provided key will serve as temporary storage
-      attr_accessor key.to_sym
       
       connector = params.delete(:connector)
       connector_source = params.delete(:connector_source)
@@ -23,13 +22,18 @@ module PolymorphicAttacher
         validate "proper_#{key}_association".to_sym
       end
       
+      context_key = params[:context_key]
+      context = params[:context]
+      
       before_validation :attach_polymorphic_associations
       
       if poly_getter = params.delete(:poly_getter)
         class_eval <<-HERE
           # convenience getter for the current collection of final association objects
           def #{poly_getter.to_s}(include_unsaved = true)
-            collection = #{connector.to_s}.collect {|c| c.#{connector_source.to_s}}
+            collection = #{connector.to_s}.find(:all, 
+              :conditions => ["#{context_key} = ?", '#{context}']).collect {|c| c.#{connector_source.to_s}}
+              
             if include_unsaved
               collection += #{key}.to_a
             end
@@ -39,6 +43,9 @@ module PolymorphicAttacher
       end
             
       class_eval <<-HERE
+        # provided key will serve as temporary storage
+        attr_accessor :#{key.to_s}
+      
         # delegative proxy setter
         def #{key}=(val)
           if val.is_a?(Array)
@@ -97,19 +104,25 @@ module PolymorphicAttacher
         key = attacher_hash[:key].to_sym
         source = attacher_hash[:connector_source].to_sym
         connector = attacher_hash[:connector].to_sym
+        context_key = attacher_hash[:context_key].to_s
+        context = attacher_hash[:context].to_s
         
         # if the proxy object is nil, don't touch associations
-        return if self.send(key).nil?
+        next if self.send(key).nil?
         
         # reflect on the connector association to figure out a few implementation details
         klass = self.class.reflect_on_association(connector).klass
         as = self.class.reflect_on_association(connector).options[:as]
+              
+        # collect the ids for current collection of join-table objects
+        old_ids = self.send(attacher_hash[:connector]).find(:all, 
+          :conditions => ["#{context_key} = ?", context]).collect {|r| r.id}
         
-        # build the join-table objects that will establish the linkage
-        collection = self.send(key).map {|record| klass.new(source => record, as => self)}
+        # delete the old join-table set of objects
+        klass.delete(old_ids)
         
-        # replace the old join-table set of objects with the newly defined set
-        self.send((attacher_hash[:connector] + "=").to_sym, collection)
+        # create the join-table objects that will establish the linkage
+        collection = self.send(key).map {|record| klass.create(source => record, as => self, context_key.to_sym => context)}
       end
     end
     
