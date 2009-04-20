@@ -121,8 +121,11 @@ module PolymorphicAttacher
         # delete the old join-table set of objects
         klass.delete(old_ids)
         
-        # create the join-table objects that will establish the linkage
-        collection = self.send(key).map {|record| klass.create(source => record, as => self, context_key.to_sym => context)}
+        # build the join-table objects that will establish the linkage
+        collection = self.send(key).map {|record| klass.new(source => record, as => self, context_key.to_sym => context)}
+        
+        # save and attach the join-table objects - use the Rails <<, as it minimizes issues with the callback chain
+        self.send(attacher_hash[:connector]) << collection
       end
     end
     
