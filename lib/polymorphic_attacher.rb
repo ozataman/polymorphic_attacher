@@ -4,7 +4,7 @@ module PolymorphicAttacher
     class MissingConnectorDef < StandardError; end;
     
     def create_polymorphic_attacher_on(key, params={})
-      params.assert_valid_keys([:find_scopes, :connector, :connector_source, :validate, :poly_getter, :context_key, :context])
+      params.assert_valid_keys([:find_scope, :connector, :connector_source, :validate, :poly_getter, :context_key, :context])
       raise MissingConnectorDef, "need a connector" unless params[:connector]
       raise MissingConnectorDef, "need a connector source" unless params[:connector_source]
       raise MissingConnectorDef, "need a context" unless params[:context]
@@ -18,6 +18,7 @@ module PolymorphicAttacher
       
       connector = params.delete(:connector)
       connector_source = params.delete(:connector_source)
+      
       if params.delete(:validate)
         validate "proper_#{key}_association".to_sym
       end
@@ -70,12 +71,16 @@ module PolymorphicAttacher
     # When provided from a web form, it is convenient to pass an ID string
     # Make sure type is in class form. Ex: GoodProduct_784573
     def attach_polymorphic_to(key, val)
+      attacher_key = key
+      key = key.to_s
       
       # turn key into an instance parameter
       key = "@#{key}" unless key.match("@")
       
       # initialize an empty array if the storage is nil
       instance_variable_set(key, []) if instance_variable_get(key).nil?
+      
+      find_scope = self.class.read_inheritable_attribute(:polymorphic_attachers)[attacher_key][:find_scope]
       
       if val.nil? || val.blank?
         # do nothing
@@ -85,7 +90,19 @@ module PolymorphicAttacher
         type, record_id = val.split("_")
         klass = type.classify.constantize
         record_id = record_id.to_i
-        instance_variable_get(key) << klass.current_tenant.find(record_id)
+        
+        record = case find_scope
+        when Proc
+          find_scope.call(klass).find(record_id)
+        when Symbol
+          klass.scopes[find_scope].call(klass).find(record_id)
+        when String
+          klass.scoped(instance_eval(find_scope)).find(record_id)
+        when nil
+          klass.find(record_id)
+        end
+        
+        instance_variable_get(key) << record
         
       # If an active record object has been provided directly, just accept it
       elsif val.class.respond_to?(:base_class) && val.class.base_class.descends_from_active_record?
