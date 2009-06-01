@@ -11,8 +11,8 @@ module PolymorphicAttacher
       raise MissingConnectorDef, "need a context key" unless params[:context_key]
       
       key = key.to_s
-      write_inheritable_attribute(:polymorphic_attachers, []) if read_inheritable_attribute(:polymorphic_attachers).nil?
-      read_inheritable_attribute(:polymorphic_attachers) << params.merge({:key => key})
+      write_inheritable_attribute(:polymorphic_attachers, {}) if read_inheritable_attribute(:polymorphic_attachers).nil?
+      read_inheritable_attribute(:polymorphic_attachers)[key] = params.merge({:key => key})
       
       include PolymorphicAttacher::InstanceMethods
       
@@ -98,7 +98,7 @@ module PolymorphicAttacher
     # cycle through all associations that were defined and replace their new values
     # only works if there is a non-nil #key attribute set
     def attach_polymorphic_associations
-      self.class.read_inheritable_attribute(:polymorphic_attachers).each do |attacher_hash|
+      self.class.read_inheritable_attribute(:polymorphic_attachers).values.each do |attacher_hash|
         
         # get some variables for convenience
         key = attacher_hash[:key].to_sym
