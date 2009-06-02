@@ -145,6 +145,7 @@ module PolymorphicAttacher
         # self.send(attacher_hash[:connector]) << collection
         collection.each {|c| c.save!}
       end
+      true
     end
     
   end
