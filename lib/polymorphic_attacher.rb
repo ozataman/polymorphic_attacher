@@ -26,7 +26,7 @@ module PolymorphicAttacher
       context_key = params[:context_key]
       context = params[:context]
       
-      before_validation :attach_polymorphic_associations
+      after_save :attach_polymorphic_associations
       
       if poly_getter = params.delete(:poly_getter)
         class_eval <<-HERE
