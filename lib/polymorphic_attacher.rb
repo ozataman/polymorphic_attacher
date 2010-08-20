@@ -38,7 +38,7 @@ module PolymorphicAttacher
             if include_unsaved
               collection += #{key}.to_a
             end
-            collection
+            collection.uniq
           end
         HERE
       end
