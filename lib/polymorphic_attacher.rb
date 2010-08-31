@@ -82,7 +82,9 @@ module PolymorphicAttacher
       
       find_scope = self.class.read_inheritable_attribute(:polymorphic_attachers)[attacher_key][:find_scope]
       
-      if val.nil? || val.blank?
+      if val == false
+        instance_variable_set(key, []) 
+      elsif val.blank?
         # do nothing
       
       # if val is a string, then it must be in serialized record form
